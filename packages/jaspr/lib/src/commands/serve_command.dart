@@ -67,7 +67,7 @@ class ServeCommand extends BaseCommand {
     var debug = argResults!['debug'] as bool;
     var release = argResults!['release'] as bool;
 
-    var webProcess = await runWebdev([
+    var webProcess = runWebdev([
       'serve',
       '--auto=${argResults!['mode'] == 'reload' ? 'restart' : 'refresh'}',
       'web:${useSSR ? '5467' : argResults!['port']}',
@@ -81,7 +81,7 @@ class ServeCommand extends BaseCommand {
     ]);
 
     if (!useSSR) {
-      return watchProcess(webProcess);
+      return watchExitCode(webProcess);
     }
 
     print("Starting jaspr development server in ${release ? 'release' : 'debug'} mode...");
@@ -89,19 +89,16 @@ class ServeCommand extends BaseCommand {
     var buildCompleted = StreamController<int>.broadcast();
     var build = 0;
 
-    checkWebdevStarted(String str) {
-      if (str.contains('Running build completed')) {
+    unawaited(webProcess.then((value){
+      if(value == 0){
         buildCompleted.add(build++);
       }
-    }
+    }));
 
     var verbose = argResults!['verbose'] as bool;
 
-    unawaited(watchProcess(
+    unawaited(watchExitCode(
       webProcess,
-      pipeStdout: verbose,
-      pipeStderr: true,
-      listen: checkWebdevStarted,
       onExit: !verbose //
           ? () => print('webdev serve exited unexpectedly. Run again with -v to see verbose output')
           : null,
