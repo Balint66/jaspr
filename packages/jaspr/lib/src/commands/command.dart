@@ -1,5 +1,7 @@
+import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
+import 'dart:isolate';
 
 import 'package:args/command_runner.dart';
 // ignore: implementation_imports
@@ -31,7 +33,8 @@ abstract class BaseCommand extends Command<void> {
     exit(exitCode);
   }
 
-  Future<int> runWebdev(List<String> args) => webdev.run(args);
+
+  Future<int> runWebdev(List<String> args) => Isolate.run(() => webdev.run(args),);
 
   Future<String?> getEntryPoint(String? input) async {
     var entryPoints = [input, 'lib/main.dart', 'web/main.dart'];
@@ -75,20 +78,15 @@ abstract class BaseCommand extends Command<void> {
     void Function()? onExit,
   }) async {
     if (pipeStderr) {
-      process.stderr.listen((event) => stderr.add(event));
+      process.stderr.listen(stderr.add);
     }
     if (pipeStdout || listen != null) {
-      bool pipe = pipeStdout;
-      process.stdout.listen((event) {
-        String? _decoded;
-        String decoded() => _decoded ??= utf8.decode(event);
-
-        listen?.call(decoded());
-
-        if (pipe && until != null) pipe = !until(decoded());
-        if (!pipe || (hide?.call(decoded()) ?? false)) return;
-        stdout.add(event);
-      });
+      var pipe = pipeStdout;
+      process.stdout.map(utf8.decode)
+      ..listen(listen)
+      ..where((event) => pipe = pipe && until != null && !until(event))
+      .where((event)=>hide?.call(event) ?? true)
+      .listen(stdout.write);
     }
     await watchExitCode(
       process.exitCode,

@@ -63,14 +63,24 @@ class ServeCommand extends BaseCommand {
   Future<void> run() async {
     await super.run();
 
-    var useSSR = argResults!['ssr'] as bool;
-    var debug = argResults!['debug'] as bool;
-    var release = argResults!['release'] as bool;
+    String? entryPoint = await getEntryPoint(argResults!['input']);
+
+    //fail fast without entry point
+    if (entryPoint == null) {
+      print("Cannot find entry point. Create a main.dart in lib or web, or specify a file using --input.");
+      shutdown(1);
+    }
+
+    final useSSR = argResults!['ssr'] as bool;
+    final debug = argResults!['debug'] as bool;
+    final release = argResults!['release'] as bool;
+    final verbose = argResults!['verbose'] as bool;
 
     var webProcess = runWebdev([
       'serve',
       '--auto=${argResults!['mode'] == 'reload' ? 'restart' : 'refresh'}',
       'web:${useSSR ? '5467' : argResults!['port']}',
+      if(verbose) '--verbose',
       if (release) '--release',
       '--',
       '--delete-conflicting-outputs',
@@ -95,8 +105,6 @@ class ServeCommand extends BaseCommand {
       }
     }));
 
-    var verbose = argResults!['verbose'] as bool;
-
     unawaited(watchExitCode(
       webProcess,
       onExit: !verbose //
@@ -116,22 +124,11 @@ class ServeCommand extends BaseCommand {
         '-Djaspr.flags.release=true',
       '-Djaspr.dev.proxy=5467',
       '-Djaspr.flags.verbose=$debug',
+      if(debug)
+        '--pause-isolates-on-start',
+        entryPoint,
+        ...argResults!.rest
     ];
-
-    if (debug) {
-      args.add('--pause-isolates-on-start');
-    }
-
-    String? entryPoint = await getEntryPoint(argResults!['input']);
-
-    if (entryPoint == null) {
-      print("Cannot find entry point. Create a main.dart in lib or web, or specify a file using --input.");
-      shutdown(1);
-    }
-
-    args.add(entryPoint);
-
-    args.addAll(argResults!.rest);
 
     var process = await Process.start(
       'dart',

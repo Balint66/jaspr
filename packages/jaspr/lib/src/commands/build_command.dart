@@ -39,6 +39,14 @@ class BuildCommand extends BaseCommand {
   Future<void> run() async {
     await super.run();
 
+    String? entryPoint = await getEntryPoint(argResults!['input']);
+
+    //fail fast if there is no entry point
+    if (entryPoint == null) {
+      print("Cannot find entry point. Create a main.dart in lib/ or web/, or specify a file using --input.");
+      shutdown(1);
+    }
+
     var useSSR = argResults!['ssr'] as bool;
 
     if (useSSR) {
@@ -55,13 +63,6 @@ class BuildCommand extends BaseCommand {
       unawaited(webResult);
     } else {
       return webResult;
-    }
-
-    String? entryPoint = await getEntryPoint(argResults!['input']);
-
-    if (entryPoint == null) {
-      print("Cannot find entry point. Create a main.dart in lib/ or web/, or specify a file using --input.");
-      shutdown(1);
     }
 
     var process = await Process.start(
