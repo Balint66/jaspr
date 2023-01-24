@@ -27,14 +27,7 @@ jobs:
         uses: actions/checkout@v2
 
       - uses: dart-lang/setup-dart@v1.3
-
-      - name: Activate Jaspr
-        run: |
-          cd packages
-          dart pub global activate jaspr --source=path
-
-      - name: Create & Build Project
-        run: |
-          jaspr create my_app
-          cd my_app
-          jaspr build
+      - uses: bluefireteam/melos-action@v1
+      
+      - name: Run tests
+        run: melos run test
